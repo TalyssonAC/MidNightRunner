@@ -1,8 +1,8 @@
-import pygame, pyttsx3, random, math, speech_recognition as sr
+import pygame, pyttsx3, random, math, speech_recognition as sr, sys
 from pygame.locals import *
 from sys import exit
 from datetime import datetime
-from resources.recs import inicializarBancoDeDados, escreverDados, limpa_tela, aguarde
+from recursos.recs import inicializarBancoDeDados, escreverDados, limpa_tela, aguarde
 import json
 
 limpa_tela()
