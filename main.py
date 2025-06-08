@@ -46,7 +46,7 @@ botoes = pygame.mixer.Sound('assets/botoes.wav')
 botoes.set_volume(0.5)
 musica_game.set_volume(0.5)
 
-# Log de tentativas (agora em JSON)
+# Log de tentativas
 tentativas = []
 try:
     with open("log.dat", "r") as f:
@@ -98,7 +98,7 @@ def pedir_nome():
         return "Unknown"
     return nome.strip()
 
-# Função para reconhecer o nome do jogador por voz (opcional)
+# Função para reconhecer o nome do jogador por voz
 def reconhecer_pontuacao():
     r = sr.Recognizer()
     with sr.Microphone() as source:
@@ -109,7 +109,7 @@ def reconhecer_pontuacao():
     except:
         return ""
 
-# Função para reconhecer "Let's Race" por voz
+# Função para reconhecer voz
 def reconhecer_lets_race():
     r = sr.Recognizer()
     with sr.Microphone() as source:
@@ -121,14 +121,19 @@ def reconhecer_lets_race():
     except:
         return ""
 
-def jogar(jogador):
+def jogar(jogador):    
     lanes = [75, 220, 370, 520, 665, 827]
     tamanho_runner = (100, 150)
     tamanho_enemy = (100, 150)
     posicao_runner = [tela_x // 2, tela_y - tamanho_runner[1]]
     inimigos = []
-    velocidade_enemy = 5
-    enemy_spawn_time = random.randint(2000, 3000)
+    velocidade_enemy_inicial = 5
+    velocidade_enemy = velocidade_enemy_inicial
+    aumento_velocidade_intervalo = 10000  # 10 segundos
+    ultimo_aumento_velocidade = pygame.time.get_ticks()
+    min_spawn = 400
+    max_spawn = 900
+    enemy_spawn_time = random.randint(min_spawn, max_spawn)
     ultimo_spawn = pygame.time.get_ticks()
     pontuacao = 0
     paused = False
@@ -136,7 +141,8 @@ def jogar(jogador):
     pause_blink_timer = 0
     pause_blink_interval = 2000
     fundo_y = 0
-    fundo_vel = 5
+    fundo_vel_inicial = 5
+    fundo_vel = fundo_vel_inicial
     musica_game.play(-1)
     rodando = True
     while rodando:
@@ -180,13 +186,24 @@ def jogar(jogador):
             relogio.tick(60)
             continue
 
+        # Aumenta a velocidade dos inimigos e do fundo a cada 10 segundos, até 3x
+        tempo_atual = pygame.time.get_ticks()
+        if tempo_atual - ultimo_aumento_velocidade >= aumento_velocidade_intervalo:
+            if velocidade_enemy < velocidade_enemy_inicial * 3:
+                velocidade_enemy += 1
+                fundo_vel = fundo_vel_inicial * (velocidade_enemy / velocidade_enemy_inicial)
+                # Diminui o tempo de spawn conforme a velocidade aumenta, até um mínimo
+                min_spawn = max(200, min_spawn - 100)
+                max_spawn = max(400, max_spawn - 150)
+            ultimo_aumento_velocidade = tempo_atual
+
         # Spawn de inimigos
         tempo_atual = pygame.time.get_ticks()
         if tempo_atual - ultimo_spawn >= enemy_spawn_time:
             lane_x = random.choice(lanes)
             inimigos.append([lane_x, 0, False])  # [x, y, ultrapassou_flag]
             ultimo_spawn = tempo_atual
-            enemy_spawn_time = random.randint(2000, 3000)
+            enemy_spawn_time = random.randint(min_spawn, max_spawn)
 
         # Atualiza posição dos inimigos e conta ultrapassagens
         for inimigo in inimigos:
