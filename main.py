@@ -223,13 +223,30 @@ def jogar(jogador):
         tela.blit(runner, posicao_runner)
         for inimigo in inimigos:
             tela.blit(enemy, (inimigo[0], inimigo[1]))
+
+        # --- Pontuação em tempo real ---
+        # Fundo escuro e transparente centralizado no topo
+        score_width, score_height = 240, 48
+        score_x = (tela_x - score_width) // 2
+        score_y = 20
+        s = pygame.Surface((score_width, score_height))
+        s.set_alpha(180)  # Transparência (0-255)
+        s.fill((0, 0, 0))  # Preto
+        tela.blit(s, (score_x, score_y))
+
+        # Texto da pontuação centralizado (fonte menor)
+        fonte_score = pygame.font.SysFont("arial", 28)
+        score_text = fonte_score.render(f"Ultrapassagens: {pontuacao}", True, amarelo)
+        text_rect = score_text.get_rect(center=(tela_x // 2, score_y + score_height // 2))
+        tela.blit(score_text, text_rect)
+
         pygame.display.update()
         relogio.tick(60)
 
 def mostrar_game_over(pontuacao, jogador):
     tela.blit(fundo_morte, (0, 0))
     fim_text = fonte.render("GAME OVER", True, vermelho)
-    pontos_text = pygame.font.SysFont("arial", 60).render(f"Ultrapassagens: {pontuacao}", True, amarelo)
+    pontos_text = pygame.font.SysFont("arial", 30).render(f"Pontos: {pontuacao}", True, amarelo)
     tela.blit(fim_text, (tela_x // 2 - fim_text.get_width() // 2, 80))
     tela.blit(pontos_text, (tela_x // 2 - pontos_text.get_width() // 2, 220))
 
