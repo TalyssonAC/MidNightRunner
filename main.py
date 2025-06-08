@@ -3,7 +3,7 @@ from pygame.locals import *
 from sys import exit
 from datetime import datetime
 from resources.recs import inicializarBancoDeDados, escreverDados, limpa_tela, aguarde
-
+import json
 
 # variaveis
 
@@ -46,10 +46,23 @@ botoes = pygame.mixer.Sound('assets/botoes.wav')
 botoes.set_volume(0.5)
 musica_game.set_volume(0.5)
 
-# Log de tentativas
+# Log de tentativas (agora em JSON)
 tentativas = []
+try:
+    with open("log.dat", "r") as f:
+        dados = f.read()
+        if dados.strip():
+            dadosDict = json.loads(dados)
+            for nome, (pontuacao, data) in dadosDict.items():
+                tentativas.append({
+                    "nome": nome,
+                    "pontuacao": int(pontuacao),
+                    "data": data
+                })
+except Exception:
+    tentativas = []
 
-# Função para pedir o nome do jogador
+# pedir o nome do jogador
 def pedir_nome():
     input_box = pygame.Rect(tela_x // 2 - 200, tela_y // 2, 400, 60)
     fonte_input = pygame.font.SysFont("arial", 48)
@@ -74,7 +87,7 @@ def pedir_nome():
                 exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
-                    botoes.play()  # Toca o som ao apertar ENTER
+                    botoes.play()
                     ativo = False
                 elif event.key == pygame.K_BACKSPACE:
                     nome = nome[:-1]
@@ -85,37 +98,50 @@ def pedir_nome():
         return "Unknown"
     return nome.strip()
 
+# Função para reconhecer o nome do jogador por voz (opcional)
+def reconhecer_pontuacao():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        audio = r.listen(source)
+    try:
+        texto = r.recognize_google(audio, language="pt-BR")
+        return texto
+    except:
+        return ""
+
+# Função para reconhecer "Let's Race" por voz
+def reconhecer_lets_race():
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Diga: Let's Race")
+        audio = r.listen(source)
+    try:
+        texto = r.recognize_google(audio, language="en-US")
+        return texto
+    except:
+        return ""
+
 def jogar(jogador):
     lanes = [75, 220, 370, 520, 665, 827]
-
     tamanho_runner = (100, 150)
     tamanho_enemy = (100, 150)
-
-    posicao_runner = [tamanho[0] // 2, tamanho[1] - tamanho_runner[0]]
-
-    inimigos = []  # Cada inimigo será [x, y, ultrapassou_flag]
+    posicao_runner = [tela_x // 2, tela_y - tamanho_runner[1]]
+    inimigos = []
     velocidade_enemy = 5
-
     enemy_spawn_time = random.randint(2000, 3000)
     ultimo_spawn = pygame.time.get_ticks()
-
     pontuacao = 0
     paused = False
-
     pause_blink = True
     pause_blink_timer = 0
     pause_blink_interval = 2000
-
     fundo_y = 0
     fundo_vel = 5
-
     musica_game.play(-1)
-
     rodando = True
     while rodando:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
-                musica_game.stop()
                 pygame.quit()
                 exit()
             elif evento.type == pygame.KEYDOWN:
@@ -165,8 +191,8 @@ def jogar(jogador):
         # Atualiza posição dos inimigos e conta ultrapassagens
         for inimigo in inimigos:
             inimigo[1] += velocidade_enemy
-            # Conta ultrapassagem se o inimigo passou do runner e ainda não foi contado
-            if not inimigo[2] and inimigo[1] > posicao_runner[1] + tamanho_runner[1]:
+            # Conta ultrapassagem se a BASE do inimigo passou da BASE do runner e ainda não foi contado
+            if not inimigo[2] and (inimigo[1] + tamanho_enemy[1]) > (posicao_runner[1] + tamanho_runner[1]):
                 pontuacao += 1
                 inimigo[2] = True
 
@@ -178,7 +204,8 @@ def jogar(jogador):
             enemy_rect = pygame.Rect(inimigo[0], inimigo[1], tamanho_enemy[0], tamanho_enemy[1])
             if runner_rect.colliderect(enemy_rect):
                 musica_game.stop()
-                # Salva tentativa no log
+                # Salva tentativa no log usando escreverDados
+                escreverDados(jogador, pontuacao)
                 tentativas.append({
                     "nome": jogador,
                     "data": datetime.now().strftime("%d/%m/%Y %H:%M"),
@@ -186,18 +213,16 @@ def jogar(jogador):
                 })
                 if len(tentativas) > 5:
                     tentativas.pop(0)
-                # Mostra a tela de game over com log
                 mostrar_game_over(pontuacao, jogador)
-                return  # Sai do jogo e volta ao menu
+                menu(jogador)
+                return
 
         # --- Desenho do jogo ---
         tela.blit(fundo_game, (0, fundo_y))
         tela.blit(fundo_game, (0, fundo_y - tela_y))
-
         tela.blit(runner, posicao_runner)
         for inimigo in inimigos:
             tela.blit(enemy, (inimigo[0], inimigo[1]))
-
         pygame.display.update()
         relogio.tick(60)
 
@@ -208,12 +233,23 @@ def mostrar_game_over(pontuacao, jogador):
     tela.blit(fim_text, (tela_x // 2 - fim_text.get_width() // 2, 80))
     tela.blit(pontos_text, (tela_x // 2 - pontos_text.get_width() // 2, 220))
 
-    # Log das últimas 5 tentativas
-    y_log = 320
-    log_title = fonte_log.render("Últimas 5 tentativas:", True, branco)
-    tela.blit(log_title, (tela_x // 2 - log_title.get_width() // 2, y_log))
-    y_log += 40
+    # Área do log (fundo preto semi-transparente)
+    log_width = 600
+    log_height = 260
+    log_x = tela_x // 2 - log_width // 2
+    log_y = 320
+    log_rect = pygame.Rect(log_x, log_y, log_width, log_height)
+    s = pygame.Surface((log_width, log_height))
+    s.set_alpha(200)
+    s.fill(preto)
+    tela.blit(s, (log_x, log_y))
 
+    # Título do log
+    log_title = fonte_log.render("Últimas 5 tentativas:", True, branco)
+    tela.blit(log_title, (tela_x // 2 - log_title.get_width() // 2, log_y + 10))
+
+    # Lista das tentativas
+    y_log = log_y + 50
     for tentativa in tentativas[-5:][::-1]:
         log_text = fonte_log.render(
             f"{tentativa['data']} - {tentativa['nome']}: {tentativa['pontuacao']} pts",
@@ -222,8 +258,30 @@ def mostrar_game_over(pontuacao, jogador):
         tela.blit(log_text, (tela_x // 2 - log_text.get_width() // 2, y_log))
         y_log += 36
 
+    # Botão "Menu"
+    botao_menu = pygame.Rect(tela_x - 210, tela_y - 80, 180, 60)
+    pygame.draw.rect(tela, azul, botao_menu, border_radius=10)
+    texto_menu = fonte_log.render("Voltar ao Menu", True, branco)
+    tela.blit(texto_menu, (botao_menu.x + (botao_menu.width - texto_menu.get_width()) // 2,
+                           botao_menu.y + (botao_menu.height - texto_menu.get_height()) // 2))
+
     pygame.display.update()
-    pygame.time.wait(3500)
+
+    esperando = True
+    while esperando:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN or event.key == pygame.K_ESCAPE:
+                    botoes.play()
+                    esperando = False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if botao_menu.collidepoint(event.pos):
+                    botoes.play()
+                    esperando = False
+        relogio.tick(60)
 
 def menu(jogador):
     botao_jogar = pygame.Rect(tela_x // 2 - 150, tela_y // 2 - 60, 300, 80)
@@ -232,16 +290,12 @@ def menu(jogador):
 
     while True:
         tela.blit(fundo_menu, (0, 0))
-
-        # Desenha botões
         pygame.draw.rect(tela, ciano, botao_jogar)
         pygame.draw.rect(tela, rosa, botao_sair)
-
         texto_jogar = fonte_botao.render("JOGAR", True, branco)
         texto_sair = fonte_botao.render("SAIR", True, branco)
         tela.blit(texto_jogar, (botao_jogar.x + 50, botao_jogar.y + 10))
         tela.blit(texto_sair, (botao_sair.x + 80, botao_sair.y + 10))
-
         pygame.display.update()
 
         for event in pygame.event.get():
@@ -251,6 +305,14 @@ def menu(jogador):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
                     botoes.play()
+                    while True:
+                        tela.blit(fundo_menu, (0, 0))
+                        aviso = fonte_log.render("Diga: Let's Race para começar!", True, amarelo)
+                        tela.blit(aviso, (tela_x // 2 - aviso.get_width() // 2, tela_y // 2 + 150))
+                        pygame.display.update()
+                        texto = reconhecer_lets_race()
+                        if texto.strip().lower() == "let's race":
+                            break
                     jogar(jogador)
                     return
                 elif event.key == pygame.K_ESCAPE:
@@ -260,6 +322,14 @@ def menu(jogador):
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if botao_jogar.collidepoint(event.pos):
                     botoes.play()
+                    while True:
+                        tela.blit(fundo_menu, (0, 0))
+                        aviso = fonte_log.render("Diga: Let's Race para começar!", True, amarelo)
+                        tela.blit(aviso, (tela_x // 2 - aviso.get_width() // 2, tela_y // 2 + 150))
+                        pygame.display.update()
+                        texto = reconhecer_lets_race()
+                        if texto.strip().lower() == "let's race":
+                            break
                     jogar(jogador)
                     return
                 elif botao_sair.collidepoint(event.pos):
