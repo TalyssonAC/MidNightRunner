@@ -114,7 +114,7 @@ def jogar(jogador):
     tamanho_enemy = (100, 150)
     posicao_runner = [tela_x // 2, tela_y - tamanho_runner[1]]
     inimigos = []
-    velocidade_enemy_inicial = 5
+    velocidade_enemy_inicial = 7
     velocidade_enemy = velocidade_enemy_inicial
     aumento_velocidade_intervalo = 10000  # 10 segundos
     ultimo_aumento_velocidade = pygame.time.get_ticks()
@@ -421,7 +421,7 @@ def tela_historinha_controles():
         tela.blit(fonte_ctrl.render("Controles:", True, amarelo), (box_x + 30, box_y + 150))
         tela.blit(fonte_ctrl.render("A / ←  : Mover para a esquerda", True, branco), (box_x + 50, box_y + 190))
         tela.blit(fonte_ctrl.render("D / →  : Mover para a direita", True, branco), (box_x + 50, box_y + 230))
-        tela.blit(fonte_ctrl.render("Espaço: Pausar/Continuar", True, branco), (box_x + 50, box_y + 270))
+        tela.blit(fonte_ctrl.render("ESC: Pausar/Continuar", True, branco), (box_x + 50, box_y + 270))
 
         # --- Mensagem para falar ---
         aviso = fonte_log.render("Diga: Let's Race para começar!", True, amarelo)

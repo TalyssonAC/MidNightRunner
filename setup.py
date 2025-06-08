@@ -13,10 +13,7 @@ executables = [
 build_exe_options = {
     "packages": ["pygame", "pyttsx3", "speech_recognition", "aifc"],
     "include_files": [
-        "log.dat",
-        (os.path.join("recursos", "imagens"), "recursos/imagens"),
-        (os.path.join("recursos", "sons"), "recursos/sons"),
-        (os.path.join("recursos", "recs.py"), "recursos/recs.py")
+        "recursos/", "log.dat"
     ],
     "includes": ["chunk", "audioop"]
 }
@@ -28,3 +25,5 @@ setup(
     options={"build_exe": build_exe_options},
     executables=executables
 )
+
+#python setup.py build
