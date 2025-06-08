@@ -1,5 +1,6 @@
 from cx_Freeze import setup, Executable
 import sys
+import os
 
 base = None
 if sys.platform == "win32":
@@ -12,7 +13,10 @@ executables = [
 build_exe_options = {
     "packages": ["pygame", "pyttsx3", "speech_recognition", "aifc"],
     "include_files": [
-        "assets/", "recursos/", "log.dat"
+        "log.dat",
+        (os.path.join("recursos", "imagens"), "recursos/imagens"),
+        (os.path.join("recursos", "sons"), "recursos/sons"),
+        (os.path.join("recursos", "recs.py"), "recursos/recs.py")
     ],
     "includes": ["chunk", "audioop"]
 }
