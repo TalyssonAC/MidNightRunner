@@ -201,7 +201,7 @@ def jogar(jogador):
         tempo_atual = pygame.time.get_ticks()
         if tempo_atual - ultimo_spawn >= enemy_spawn_time:
             lane_x = random.choice(lanes)
-            inimigos.append([lane_x, 0, False])  # [x, y, ultrapassou_flag]
+            inimigos.append([lane_x, -tamanho_enemy[1], False])  # [x, y, ultrapassou_flag]
             ultimo_spawn = tempo_atual
             enemy_spawn_time = random.randint(min_spawn, max_spawn)
 
@@ -253,9 +253,23 @@ def jogar(jogador):
 
         # Texto da pontuação centralizado (fonte menor)
         fonte_score = pygame.font.SysFont("arial", 28)
-        score_text = fonte_score.render(f"Ultrapassagens: {pontuacao}", True, amarelo)
+        score_text = fonte_score.render(f"Ultrapassagens: {pontuacao}", True, branco)
         text_rect = score_text.get_rect(center=(tela_x // 2, score_y + score_height // 2))
         tela.blit(score_text, text_rect)
+
+        # --- Exibe comandos no canto superior esquerdo ---
+        comandos_width, comandos_height = 220, 48
+        comandos_x, comandos_y = 20, 20
+        s_comandos = pygame.Surface((comandos_width, comandos_height))
+        s_comandos.set_alpha(180)
+        s_comandos.fill((0, 0, 0))
+        tela.blit(s_comandos, (comandos_x, comandos_y))
+
+        fonte_comandos = pygame.font.SysFont("arial", 20)
+        texto1 = fonte_comandos.render("< >: Movimento", True, branco)
+        texto2 = fonte_comandos.render("ESC: Pause", True, branco)
+        tela.blit(texto1, (comandos_x + 10, comandos_y + 5))
+        tela.blit(texto2, (comandos_x + 10, comandos_y + 25))
 
         pygame.display.update()
         relogio.tick(60)
@@ -263,7 +277,7 @@ def jogar(jogador):
 def mostrar_game_over(pontuacao, jogador):
     tela.blit(fundo_morte, (0, 0))
     fim_text = fonte.render("GAME OVER", True, vermelho)
-    pontos_text = pygame.font.SysFont("arial", 30).render(f"Pontos: {pontuacao}", True, amarelo)
+    pontos_text = pygame.font.SysFont("arial", 30).render(f"Pontos: {pontuacao}", True, branco)
     tela.blit(fim_text, (tela_x // 2 - fim_text.get_width() // 2, 80))
     tela.blit(pontos_text, (tela_x // 2 - pontos_text.get_width() // 2, 220))
 
@@ -294,12 +308,17 @@ def mostrar_game_over(pontuacao, jogador):
 
     # Botão "Menu"
     botao_menu = pygame.Rect(tela_x - 210, tela_y - 80, 180, 60)
-    pygame.draw.rect(tela, azul, botao_menu, border_radius=10)
-    texto_menu = fonte_log.render("Voltar ao Menu", True, branco)
+    pygame.draw.rect(tela, azul, botao_menu)
+    texto_menu = fonte_log.render("MENU", True, branco)
     tela.blit(texto_menu, (botao_menu.x + (botao_menu.width - texto_menu.get_width()) // 2,
                            botao_menu.y + (botao_menu.height - texto_menu.get_height()) // 2))
 
     pygame.display.update()
+
+    # Fala a pontuação usando pyttsx3 (após exibir a tela)
+    engine = pyttsx3.init()
+    engine.say(f"Sua pontuação foi {pontuacao} ultrapassagens")
+    engine.runAndWait()
 
     esperando = True
     while esperando:
