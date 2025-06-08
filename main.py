@@ -5,10 +5,12 @@ from datetime import datetime
 from resources.recs import inicializarBancoDeDados, escreverDados, limpa_tela, aguarde
 import json
 
-# variaveis
+limpa_tela()
+aguarde(1)
 
 pygame.init()
 inicializarBancoDeDados()
+
 tela_x = 1000
 tela_y = 700
 tamanho = (tela_x, tela_y)
@@ -19,7 +21,6 @@ pygame.display.set_icon(icone)
 pygame.display.set_caption("MidNightRunner")
 
 # Cores
-
 preto = (0, 0, 0)
 branco = (255, 255, 255)
 ciano = (0, 255, 255)
@@ -30,7 +31,6 @@ azul = (0, 0, 255)
 amarelo = (255, 255, 0)
 
 # Fontes
-
 fonte = pygame.font.SysFont("arial",120)
 fonte_log = pygame.font.SysFont("arial", 32)
 fundo_menu = pygame.image.load('assets/fundo_menu.png')
@@ -40,11 +40,12 @@ runner = pygame.image.load('assets/runner.png')
 enemy = pygame.image.load('assets/enemy.png')
 
 # Sons
-
 musica_game = pygame.mixer.Sound('assets/game.mp3')
+musica_pause = pygame.mixer.Sound('assets/musica_pause.mp3')
 botoes = pygame.mixer.Sound('assets/botoes.wav')
 botoes.set_volume(0.5)
 musica_game.set_volume(0.5)
+musica_pause.set_volume(0.5)
 
 # Log de tentativas
 tentativas = []
@@ -98,17 +99,6 @@ def pedir_nome():
         return "Unknown"
     return nome.strip()
 
-# Função para reconhecer o nome do jogador por voz
-def reconhecer_pontuacao():
-    r = sr.Recognizer()
-    with sr.Microphone() as source:
-        audio = r.listen(source)
-    try:
-        texto = r.recognize_google(audio, language="pt-BR")
-        return texto
-    except:
-        return ""
-
 # Função para reconhecer voz
 def reconhecer_lets_race():
     r = sr.Recognizer()
@@ -139,7 +129,7 @@ def jogar(jogador):
     paused = False
     pause_blink = True
     pause_blink_timer = 0
-    pause_blink_interval = 2000
+    pause_blink_interval = 1000
     fundo_y = 0
     fundo_vel_inicial = 5
     fundo_vel = fundo_vel_inicial
@@ -173,6 +163,9 @@ def jogar(jogador):
                 fundo_y = 0
 
         if paused:
+            musica_game.stop()
+            if not pygame.mixer.get_busy():
+                musica_pause.play(-1)
             tela.blit(fundo_game, (0, 0))
             tempo_atual = pygame.time.get_ticks()
             if tempo_atual - pause_blink_timer >= pause_blink_interval:
@@ -185,6 +178,10 @@ def jogar(jogador):
             pygame.display.update()
             relogio.tick(60)
             continue
+        else:
+            musica_pause.stop()
+            if not pygame.mixer.get_busy():
+                musica_game.play(-1)
 
         # Aumenta a velocidade dos inimigos e do fundo a cada 10 segundos, até 3x
         tempo_atual = pygame.time.get_ticks()
@@ -271,6 +268,28 @@ def jogar(jogador):
         tela.blit(texto1, (comandos_x + 10, comandos_y + 5))
         tela.blit(texto2, (comandos_x + 10, comandos_y + 25))
 
+        # --- Ícone animado no canto superior direito ---
+        # Parâmetros da animação
+        tempo_anim = pygame.time.get_ticks() // 200  # velocidade da animação
+        pulsar = 1 + 0.15 * math.sin(pygame.time.get_ticks() / 300)  # efeito de pulsar
+        invert_x = tempo_anim % 2 == 0
+        invert_y = (tempo_anim // 2) % 2 == 0
+
+        # Carrega e transforma o ícone
+        icone_img = pygame.image.load('assets/icone.png').convert_alpha()
+        icone_base_size = 64  # tamanho base do ícone
+        icone_size = int(icone_base_size * pulsar)
+        icone_img = pygame.transform.scale(icone_img, (icone_size, icone_size))
+        if invert_x:
+            icone_img = pygame.transform.flip(icone_img, True, False)
+        if invert_y:
+            icone_img = pygame.transform.flip(icone_img, False, True)
+
+        # Posição no canto superior direito (com margem)
+        icone_x = tela_x - icone_size - 20
+        icone_y = 20
+        tela.blit(icone_img, (icone_x, icone_y))
+
         pygame.display.update()
         relogio.tick(60)
 
@@ -308,7 +327,7 @@ def mostrar_game_over(pontuacao, jogador):
 
     # Botão "Menu"
     botao_menu = pygame.Rect(tela_x - 210, tela_y - 80, 180, 60)
-    pygame.draw.rect(tela, azul, botao_menu)
+    pygame.draw.rect(tela, amarelo, botao_menu)
     texto_menu = fonte_log.render("MENU", True, branco)
     tela.blit(texto_menu, (botao_menu.x + (botao_menu.width - texto_menu.get_width()) // 2,
                            botao_menu.y + (botao_menu.height - texto_menu.get_height()) // 2))
@@ -317,7 +336,7 @@ def mostrar_game_over(pontuacao, jogador):
 
     # Fala a pontuação usando pyttsx3 (após exibir a tela)
     engine = pyttsx3.init()
-    engine.say(f"Sua pontuação foi {pontuacao} ultrapassagens")
+    engine.say(f"Sua pontuação foi {pontuacao}")
     engine.runAndWait()
 
     esperando = True
