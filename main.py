@@ -1,9 +1,8 @@
-import pygame, pyttsx3, random, math, speech_recognition as sr, sys, aifc
+import pygame, pyttsx3, random, math, speech_recognition as sr, sys, aifc, json
 from pygame.locals import *
 from sys import exit
 from datetime import datetime
-from recursos.recs import inicializarBancoDeDados, escreverDados, limpa_tela, aguarde
-import json
+from Recursos.recs import inicializarBancoDeDados, escreverDados, limpa_tela, aguarde
 
 limpa_tela()
 aguarde(1)
@@ -16,7 +15,7 @@ tela_y = 700
 tamanho = (tela_x, tela_y)
 relogio = pygame.time.Clock()
 tela = pygame.display.set_mode(tamanho)
-icone = pygame.image.load('assets/icone.png')
+icone = pygame.image.load('Recursos/assets/icone.png')
 pygame.display.set_icon(icone)
 pygame.display.set_caption("MidNightRunner")
 
@@ -33,16 +32,16 @@ amarelo = (255, 255, 0)
 # Fontes
 fonte = pygame.font.SysFont("arial",120)
 fonte_log = pygame.font.SysFont("arial", 32)
-fundo_menu = pygame.image.load('assets/fundo_menu.png')
-fundo_game = pygame.image.load('assets/fundo_game.png')
-fundo_morte = pygame.image.load('assets/fundo_morte.png')
-runner = pygame.image.load('assets/runner.png')
-enemy = pygame.image.load('assets/enemy.png')
+fundo_menu = pygame.image.load('Recursos/assets/fundo_menu.png')
+fundo_game = pygame.image.load('Recursos/assets/fundo_game.png')
+fundo_morte = pygame.image.load('Recursos/assets/fundo_morte.png')
+runner = pygame.image.load('Recursos/assets/runner.png')
+enemy = pygame.image.load('Recursos/assets/enemy.png')
 
 # Sons
-musica_game = pygame.mixer.Sound('assets/game.mp3')
-musica_pause = pygame.mixer.Sound('assets/musica_pause.mp3')
-botoes = pygame.mixer.Sound('assets/botoes.wav')
+musica_game = pygame.mixer.Sound('Recursos/assets/game.mp3')
+musica_pause = pygame.mixer.Sound('Recursos/assets/musica_pause.mp3')
+botoes = pygame.mixer.Sound('Recursos/assets/botoes.wav')
 botoes.set_volume(0.5)
 musica_game.set_volume(0.5)
 musica_pause.set_volume(0.5)
@@ -63,7 +62,6 @@ try:
 except Exception:
     tentativas = []
 
-# pedir o nome do jogador
 def pedir_nome():
     input_box = pygame.Rect(tela_x // 2 - 200, tela_y // 2, 400, 60)
     fonte_input = pygame.font.SysFont("arial", 48)
@@ -99,7 +97,6 @@ def pedir_nome():
         return "Unknown"
     return nome.strip()
 
-# Função para reconhecer voz
 def reconhecer_lets_race():
     r = sr.Recognizer()
     with sr.Microphone() as source:
@@ -153,9 +150,9 @@ def jogar(jogador):
 
         if not paused:
             teclas = pygame.key.get_pressed()
-            if teclas[pygame.K_LEFT] and posicao_runner[0] > 57:
+            if (teclas[pygame.K_LEFT] or teclas[pygame.K_a]) and posicao_runner[0] > 57:
                 posicao_runner[0] -= 10
-            if teclas[pygame.K_RIGHT] and posicao_runner[0] < 942 - tamanho_runner[0]:
+            if (teclas[pygame.K_RIGHT] or teclas[pygame.K_d]) and posicao_runner[0] < 942 - tamanho_runner[0]:
                 posicao_runner[0] += 10
 
             fundo_y += fundo_vel
@@ -183,13 +180,15 @@ def jogar(jogador):
             if not pygame.mixer.get_busy():
                 musica_game.play(-1)
 
-        # Aumenta a velocidade dos inimigos e do fundo a cada 10 segundos, até 3x
+        # Aumenta a velocidade dos inimigos e do fundo a cada 10 segundos
         tempo_atual = pygame.time.get_ticks()
         if tempo_atual - ultimo_aumento_velocidade >= aumento_velocidade_intervalo:
             if velocidade_enemy < velocidade_enemy_inicial * 3:
                 velocidade_enemy += 1
                 fundo_vel = fundo_vel_inicial * (velocidade_enemy / velocidade_enemy_inicial)
-                # Diminui o tempo de spawn conforme a velocidade aumenta, até um mínimo
+
+                # Diminui o tempo de spawn conforme a velocidade aumenta
+
                 min_spawn = max(200, min_spawn - 100)
                 max_spawn = max(400, max_spawn - 150)
             ultimo_aumento_velocidade = tempo_atual
@@ -197,10 +196,13 @@ def jogar(jogador):
         # Spawn de inimigos
         tempo_atual = pygame.time.get_ticks()
         if tempo_atual - ultimo_spawn >= enemy_spawn_time:
-            lane_x = random.choice(lanes)
-            inimigos.append([lane_x, -tamanho_enemy[1], False])  # [x, y, ultrapassou_flag]
-            ultimo_spawn = tempo_atual
-            enemy_spawn_time = random.randint(min_spawn, max_spawn)
+            lanes_ocupadas = [inimigo[0] for inimigo in inimigos if inimigo[1] < tamanho_enemy[1]]
+            lanes_disponiveis = [lane for lane in lanes if lane not in lanes_ocupadas]
+            if lanes_disponiveis:
+                lane_x = random.choice(lanes_disponiveis)
+                inimigos.append([lane_x, -tamanho_enemy[1], False])  # [x, y, ultrapassou_flag]
+                ultimo_spawn = tempo_atual
+                enemy_spawn_time = random.randint(min_spawn, max_spawn)
 
         # Atualiza posição dos inimigos e conta ultrapassagens
         for inimigo in inimigos:
@@ -218,7 +220,7 @@ def jogar(jogador):
             enemy_rect = pygame.Rect(inimigo[0], inimigo[1], tamanho_enemy[0], tamanho_enemy[1])
             if runner_rect.colliderect(enemy_rect):
                 musica_game.stop()
-                # Salva tentativa no log usando escreverDados
+                # Salva tentativa no log
                 escreverDados(jogador, pontuacao)
                 tentativas.append({
                     "nome": jogador,
@@ -238,7 +240,7 @@ def jogar(jogador):
         for inimigo in inimigos:
             tela.blit(enemy, (inimigo[0], inimigo[1]))
 
-        # --- Pontuação em tempo real ---
+        
         # Fundo escuro e transparente centralizado no topo
         score_width, score_height = 240, 48
         score_x = (tela_x - score_width) // 2
@@ -263,20 +265,20 @@ def jogar(jogador):
         tela.blit(s_comandos, (comandos_x, comandos_y))
 
         fonte_comandos = pygame.font.SysFont("arial", 20)
-        texto1 = fonte_comandos.render("< >: Movimento", True, branco)
+        texto1 = fonte_comandos.render("A/D ←/→: Movimento", True, branco)
         texto2 = fonte_comandos.render("ESC: Pause", True, branco)
         tela.blit(texto1, (comandos_x + 10, comandos_y + 5))
         tela.blit(texto2, (comandos_x + 10, comandos_y + 25))
 
         # --- Ícone animado no canto superior direito ---
-        # Parâmetros da animação
+        
         tempo_anim = pygame.time.get_ticks() // 200  # velocidade da animação
         pulsar = 1 + 0.15 * math.sin(pygame.time.get_ticks() / 300)  # efeito de pulsar
         invert_x = tempo_anim % 2 == 0
         invert_y = (tempo_anim // 2) % 2 == 0
 
         # Carrega e transforma o ícone
-        icone_img = pygame.image.load('assets/icone.png').convert_alpha()
+        icone_img = pygame.image.load('Recursos/assets/icone.png').convert_alpha()
         icone_base_size = 64  # tamanho base do ícone
         icone_size = int(icone_base_size * pulsar)
         icone_img = pygame.transform.scale(icone_img, (icone_size, icone_size))
@@ -285,7 +287,7 @@ def jogar(jogador):
         if invert_y:
             icone_img = pygame.transform.flip(icone_img, False, True)
 
-        # Posição no canto superior direito (com margem)
+        # Posição no canto superior direito
         icone_x = tela_x - icone_size - 20
         icone_y = 20
         tela.blit(icone_img, (icone_x, icone_y))
@@ -377,14 +379,7 @@ def menu(jogador):
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
                     botoes.play()
-                    while True:
-                        tela.blit(fundo_menu, (0, 0))
-                        aviso = fonte_log.render("Diga: Let's Race para começar!", True, amarelo)
-                        tela.blit(aviso, (tela_x // 2 - aviso.get_width() // 2, tela_y // 2 + 150))
-                        pygame.display.update()
-                        texto = reconhecer_lets_race()
-                        if texto.strip().lower() == "let's race":
-                            break
+                    tela_historinha_controles()
                     jogar(jogador)
                     return
                 elif event.key == pygame.K_ESCAPE:
@@ -394,20 +389,48 @@ def menu(jogador):
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if botao_jogar.collidepoint(event.pos):
                     botoes.play()
-                    while True:
-                        tela.blit(fundo_menu, (0, 0))
-                        aviso = fonte_log.render("Diga: Let's Race para começar!", True, amarelo)
-                        tela.blit(aviso, (tela_x // 2 - aviso.get_width() // 2, tela_y // 2 + 150))
-                        pygame.display.update()
-                        texto = reconhecer_lets_race()
-                        if texto.strip().lower() == "let's race":
-                            break
+                    tela_historinha_controles()
                     jogar(jogador)
                     return
                 elif botao_sair.collidepoint(event.pos):
                     botoes.play()
                     pygame.quit()
                     exit()
+
+def tela_historinha_controles():
+    while True:
+        tela.blit(fundo_menu, (0, 0))
+        # --- Caixa escura e transparente MAIOR ---
+        box_width, box_height = 700, 400 
+        box_x = (tela_x - box_width) // 2
+        box_y = (tela_y - box_height) // 2
+        s_box = pygame.Surface((box_width, box_height))
+        s_box.set_alpha(200)
+        s_box.fill((0, 0, 0))
+        tela.blit(s_box, (box_x, box_y))
+
+        # --- Texto da historinha ---
+        fonte_hist = pygame.font.SysFont("arial", 28)
+        hist1 = "Um corredor solitário que, após um dia de trabalho,"
+        hist2 = "resolve dar um rolê de carro pra pensar um pouco."
+        tela.blit(fonte_hist.render(hist1, True, branco), (box_x + 30, box_y + 40))
+        tela.blit(fonte_hist.render(hist2, True, branco), (box_x + 30, box_y + 80))
+
+        # --- Controles ---
+        fonte_ctrl = pygame.font.SysFont("arial", 24)
+        tela.blit(fonte_ctrl.render("Controles:", True, amarelo), (box_x + 30, box_y + 150))
+        tela.blit(fonte_ctrl.render("A / ←  : Mover para a esquerda", True, branco), (box_x + 50, box_y + 190))
+        tela.blit(fonte_ctrl.render("D / →  : Mover para a direita", True, branco), (box_x + 50, box_y + 230))
+        tela.blit(fonte_ctrl.render("Espaço: Pausar/Continuar", True, branco), (box_x + 50, box_y + 270))
+
+        # --- Mensagem para falar ---
+        aviso = fonte_log.render("Diga: Let's Race para começar!", True, amarelo)
+        tela.blit(aviso, (tela_x // 2 - aviso.get_width() // 2, box_y + box_height - 60))
+
+        pygame.display.update()
+        texto = reconhecer_lets_race()
+        if texto.strip().lower() == "let's race":
+            break
 
 # --- INÍCIO DO JOGO ---
 jogador_nome = pedir_nome()
