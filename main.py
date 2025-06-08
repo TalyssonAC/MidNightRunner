@@ -1,4 +1,4 @@
-import pygame, pyttsx3, random, math, speech_recognition as sr, sys, aifc, json
+import pygame, pyttsx3, random, math, speech_recognition as sr, json
 from pygame.locals import *
 from sys import exit
 from datetime import datetime
