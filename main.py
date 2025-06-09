@@ -116,7 +116,7 @@ def jogar(jogador):
     inimigos = []
     velocidade_enemy_inicial = 7
     velocidade_enemy = velocidade_enemy_inicial
-    aumento_velocidade_intervalo = 10000  # 10 segundos
+    aumento_velocidade_intervalo = 5000
     ultimo_aumento_velocidade = pygame.time.get_ticks()
     min_spawn = 400
     max_spawn = 900
@@ -128,7 +128,7 @@ def jogar(jogador):
     pause_blink_timer = 0
     pause_blink_interval = 1000
     fundo_y = 0
-    fundo_vel_inicial = 5
+    fundo_vel_inicial = 10
     fundo_vel = fundo_vel_inicial
     musica_game.play(-1)
     rodando = True
